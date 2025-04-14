@@ -63,6 +63,7 @@ var (
 	openvpnServiceName       = kingpin.Flag("ovpn.service", "the name of Kubernetes Service having the LoadBalancer type if your OpenVPN server is behind it").Default("openvpn-external").Envar("OVPN_LB_SERVICE").Strings()
 	mgmtAddress              = kingpin.Flag("mgmt", "ALIAS=HOST:PORT for OpenVPN server mgmt interface; can have multiple values").Default("main=127.0.0.1:8989").Envar("OVPN_MGMT").Strings()
 	metricsPath              = kingpin.Flag("metrics.path", "URL path for exposing collected metrics").Default("/metrics").Envar("OVPN_METRICS_PATH").String()
+	openvpnDirPath           = kingpin.Flag("openvpn.path", "path to openvpn dir").Default("./openvpn").Envar("OPENVPN_PATH").String()
 	easyrsaDirPath           = kingpin.Flag("easyrsa.path", "path to easyrsa dir").Default("./easyrsa").Envar("EASYRSA_PATH").String()
 	indexTxtPath             = kingpin.Flag("easyrsa.index-path", "path to easyrsa index file").Default("").Envar("OVPN_INDEX_PATH").String()
 	easyrsaBinPath           = kingpin.Flag("easyrsa.bin-path", "path to easyrsa script").Default("easyrsa").Envar("EASYRSA_BIN_PATH").String()
@@ -77,6 +78,7 @@ var (
 	logFormat                = kingpin.Flag("log.format", "set log format: text, json (default text)").Default("text").Envar("LOG_FORMAT").String()
 	storageBackend           = kingpin.Flag("storage.backend", "storage backend: filesystem, kubernetes.secrets (default filesystem)").Default("filesystem").Envar("STORAGE_BACKEND").String()
 	clientCertExpirationDays = kingpin.Flag("client-cert.expiration-days", "Expiration period of OpenVPN client certificates in days, the period will shrink automatically to the CA expiration period").Default("3650").Envar("CLIENT_CERT_EXPIRATION_DAYS").String()
+	encryptionType           = kingpin.Flag("encryption.type", "Type of encryption").Default("tls-auth").Envar("CLIENT_CERT_EXPIRATION_DAYS").String()
 
 	certsArchivePath = "/tmp/" + certsArchiveFileName
 	ccdArchivePath   = "/tmp/" + ccdArchiveFileName
@@ -204,6 +206,7 @@ type openvpnClientConfig struct {
 	Cert       string
 	Key        string
 	TLS        string
+	TC         string
 	PasswdAuth bool
 }
 
@@ -681,6 +684,46 @@ func (oAdmin *OvpnAdmin) getClientConfigTemplate() *template.Template {
 	}
 }
 
+// func getClientCert(clientName string) (string, error) {
+// 	cert := fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
+//     // certPath := fmt.Sprintf("/etc/openvpn/server/easy-rsa/pki/issued/%s.crt", clientName)
+
+//     // file, err := os.Open(certPath)
+//     // if err != nil {
+//     //     return "", fmt.Errorf("failed to open certificate file: %w", err)
+//     // }
+//     // defer file.Close()
+
+//     var builder strings.Builder
+//     startCopying := false
+
+//     scanner := bufio.NewScanner(file)
+//     for scanner.Scan() {
+//         line := scanner.Text()
+//         if !startCopying && strings.Contains(line, "BEGIN CERTIFICATE") {
+//             startCopying = true
+//         }
+
+//         if startCopying {
+//             builder.WriteString(line + "\n")
+//         }
+//     }
+
+//     if err := scanner.Err(); err != nil {
+//         return "", fmt.Errorf("error reading certificate file: %w", err)
+//     }
+
+//     return builder.String(), nil
+// }
+
+func getClientCert(username string) (string) {
+	certText := fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
+	// Regex to match PEM block from BEGIN to END
+	re := regexp.MustCompile(`-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----`)
+	match := re.FindString(certText)
+	return match
+}
+
 func (oAdmin *OvpnAdmin) renderClientConfig(username string) string {
 	if checkUserExist(username) {
 		var hosts []OpenvpnServer
@@ -703,12 +746,20 @@ func (oAdmin *OvpnAdmin) renderClientConfig(username string) string {
 		conf := openvpnClientConfig{}
 		conf.Hosts = hosts
 		conf.CA = fRead(*easyrsaDirPath + "/pki/ca.crt")
-		conf.TLS = fRead(*easyrsaDirPath + "/pki/ta.key")
+		
+		
 
-		if *storageBackend == "kubernetes.secrets" {
-			conf.Cert, conf.Key = app.easyrsaGetClientCert(username)
+		if strings.ToLower(*encryptionType) == "tls-auth" {
+			conf.TLS = fRead(*easyrsaDirPath + "/pki/ta.key")
+			if *storageBackend == "kubernetes.secrets" {
+				conf.Cert, conf.Key = app.easyrsaGetClientCert(username)
+			} else {
+				conf.Cert = fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
+				conf.Key = fRead(*easyrsaDirPath + "/pki/private/" + username + ".key")
+			}
 		} else {
-			conf.Cert = fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
+			conf.TC = fRead(*openvpnDirPath + "/server/tc.key")
+			conf.Cert = getClientCert(username)
 			conf.Key = fRead(*easyrsaDirPath + "/pki/private/" + username + ".key")
 		}
 
