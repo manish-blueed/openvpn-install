@@ -1,9 +1,9 @@
-
+client
+dev tun
+proto udp
 {{- range $server := .Hosts }}
 remote {{ $server.Host }} {{ $server.Port }} {{ $server.Protocol }}
 {{- end }}
-dev tun
-proto udp
 resolv-retry infinite
 nobind
 persist-key

@@ -684,42 +684,10 @@ func (oAdmin *OvpnAdmin) getClientConfigTemplate() *template.Template {
 	}
 }
 
-// func getClientCert(clientName string) (string, error) {
-// 	cert := fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
-//     // certPath := fmt.Sprintf("/etc/openvpn/server/easy-rsa/pki/issued/%s.crt", clientName)
-
-//     // file, err := os.Open(certPath)
-//     // if err != nil {
-//     //     return "", fmt.Errorf("failed to open certificate file: %w", err)
-//     // }
-//     // defer file.Close()
-
-//     var builder strings.Builder
-//     startCopying := false
-
-//     scanner := bufio.NewScanner(file)
-//     for scanner.Scan() {
-//         line := scanner.Text()
-//         if !startCopying && strings.Contains(line, "BEGIN CERTIFICATE") {
-//             startCopying = true
-//         }
-
-//         if startCopying {
-//             builder.WriteString(line + "\n")
-//         }
-//     }
-
-//     if err := scanner.Err(); err != nil {
-//         return "", fmt.Errorf("error reading certificate file: %w", err)
-//     }
-
-//     return builder.String(), nil
-// }
-
 func getClientCert(username string) (string) {
 	certText := fRead(*easyrsaDirPath + "/pki/issued/" + username + ".crt")
 	// Regex to match PEM block from BEGIN to END
-	re := regexp.MustCompile(`-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----`)
+	re := regexp.MustCompile(`-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----\n`)
 	match := re.FindString(certText)
 	return match
 }
