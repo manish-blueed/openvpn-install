@@ -78,7 +78,7 @@ var (
 	logFormat                = kingpin.Flag("log.format", "set log format: text, json (default text)").Default("text").Envar("LOG_FORMAT").String()
 	storageBackend           = kingpin.Flag("storage.backend", "storage backend: filesystem, kubernetes.secrets (default filesystem)").Default("filesystem").Envar("STORAGE_BACKEND").String()
 	clientCertExpirationDays = kingpin.Flag("client-cert.expiration-days", "Expiration period of OpenVPN client certificates in days, the period will shrink automatically to the CA expiration period").Default("3650").Envar("CLIENT_CERT_EXPIRATION_DAYS").String()
-	encryptionType           = kingpin.Flag("encryption.type", "Type of encryption").Default("tls-auth").Envar("CLIENT_CERT_EXPIRATION_DAYS").String()
+	encryptionType           = kingpin.Flag("encryption.type", "Type of encryption").Default("tls-auth").Envar("ENCRYPTION_TYPE").String()
 
 	certsArchivePath = "/tmp/" + certsArchiveFileName
 	ccdArchivePath   = "/tmp/" + ccdArchiveFileName
